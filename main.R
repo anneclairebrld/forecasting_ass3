@@ -29,14 +29,15 @@ test_data <- window(my_ts, start = c(1990, 1), end = c(2019, 3))
   
 # Forecasting AR 1 
 fit <- Arima(train_data, c(1, 0, 0))
-fcast1 <- forecast(fit, h = 76) # h is the number of predictions maybe should be 76?
+fcast1 <- forecast(fit, h = 119) # h is the number of predictions to do -- maybe should be 120
 
 #### QUESTION 1.b ####
-plot(fcast1, xlab = 'Year', ylab = 'Quartely growth rate of U.S personal consumption\n of non-durable goods') + ## add correct legend ?
-  lines(test_data, col = 'red', lty=2) 
+plot(fcast1, xlab = 'Year', ylab = 'Quartely growth rate of U.S personal consumption\n of non-durable goods')  ## add correct legend ?
+lines(test_data, col = 'red', lty=2) 
 
+#### QUESTION 1.c ####
+checkresiduals(fit)  ## faire une analyise dessus --  https://otexts.com/fpp2/regression-evaluation.html
 
-  
 
 
 
