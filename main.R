@@ -1,3 +1,5 @@
+library(lubridate)
+
 # set current working dir to where the file is
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
@@ -9,7 +11,9 @@ pc <- read.csv('./data/PC.csv')
 info <- fred_qd[1:2, ]
 fred_qd <- fred_qd[3:nrow(fred_qd), ]
 
+## creating date and quarter labels 
+fred_qd$sasdate <- format(as.Date(fred_qd$sasdate, format="%d/%m/%Y"))
+
 
 
 #### QUESTION 1.a ###
-head(pc)
