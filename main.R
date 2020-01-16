@@ -3,7 +3,8 @@ library(fpp)
 library(tseries)
 library(ggfortify)
 library(tidyverse)
-
+library(astsa)
+library(zoo)
 
 # set current working dir to where the file is
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
@@ -22,22 +23,37 @@ pc$observation_date <- quarter(pc$observation_date, with_year = TRUE)
 #### QUESTION 1.a ####
 
 # separate training and testing datasets
-my_ts <- ts(pc$PCND_PCH, frequency = 4, start = c(1942, 2), end = c(2019, 3))
+my_ts <- ts(pc$PCND_PCH, frequency = 4, start = c(1942, 2))
 train_data <- window(my_ts, start = c(1942, 2), end = c(1989, 4))
-test_data <- window(my_ts, start = c(1990, 1), end = c(2019, 3))
-# maybe do seasonal decomposition before 
-  
-# Forecasting AR 1 
-fit <- Arima(train_data, c(1, 0, 0))
-fcast1 <- forecast(fit, h = 119) # h is the number of predictions to do -- maybe should be 120
+test_data <- window(my_ts, start = c(1989, 4)) # start here because easier to predict later i.e we start predicting for 1990
+
+## multistep forecast
+fcast1 <- as.ts(as.zoo(train_data)[(length(train_data) - 1):length(train_data)]) # transformed back to ts
+
+# predict as many times as there are elements in test data 
+for(i in c(1:length(test_data))){
+  date <- time(test_data)[i] # get the date 
+  temp <- window(my_ts, start = (date - 0.75), end = date) # date - 0.75 as we look back 4 quarters and date is included date = what we want to predict - 1 quarter
+  fcast1.update <- arima(temp, c(1, 0, 0)) # fit an AR(1)
+  fcast1 <- ts(c(fcast1, forecast(fcast1.update, 1)$mean), start = time(fcast1)[1], frequency = 4) # forecast and add to our forecast array 
+}
+
 
 #### QUESTION 1.b ####
-plot(fcast1, xlab = 'Year', ylab = 'Quartely growth rate of U.S personal consumption\n of non-durable goods')  ## add correct legend ?
+plot(train_data, col = 'blue', xlab = 'Year', 
+     ylab = 'Quartely growth rate of U.S personal consumption\n of non-durable goods',  
+     main='Multistep forecast of personal consumprion of non-durable goods', 
+     xlim = c(1942, 2019))  ## add correct legend ?)
+lines(fcast1, col = 'black') 
 lines(test_data, col = 'red', lty=2) 
 
-#### QUESTION 1.c ####
-checkresiduals(fit)  ## faire une analyise dessus --  https://otexts.com/fpp2/regression-evaluation.html
+plot(my_ts)
 
+
+#### QUESTION 1.c ####
+# checkresiduals(fit)  ## faire une analyise dessus --  https://otexts.com/fpp2/regression-evaluation.html
+
+#### QUESTION 1.d ####
 
 
 
