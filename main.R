@@ -29,13 +29,14 @@ test_data <- window(my_ts, start = c(1989, 4)) # start here because easier to pr
 
 ## multistep forecast
 fcast1 <- as.ts(as.zoo(train_data)[(length(train_data) - 1):length(train_data)]) # transformed back to ts
-
+fcast1_cum <- fcast1
 # predict as many times as there are elements in test data 
 for(i in c(1:length(test_data))){
   date <- time(test_data)[i] # get the date 
-  temp <- window(my_ts, start = (date - 0.75), end = date) # date - 0.75 as we look back 4 quarters and date is included date = what we want to predict - 1 quarter
+  temp <- window(my_ts, start = 1942.25, end = date) # date - 0.75 as we look back 4 quarters and date is included date = what we want to predict - 1 quarter
   fcast1.update <- arima(temp, c(1, 0, 0)) # fit an AR(1)
   fcast1 <- ts(c(fcast1, forecast(fcast1.update, 1)$mean), start = time(fcast1)[1], frequency = 4) # forecast and add to our forecast array 
+  fcast1_cum <- ts(c(fcast1_cum, sum(forecast(fcast1.update, 4)$mean)), start = time(fcast1)[1], frequency = 4)
 }
 
 
@@ -45,7 +46,8 @@ plot(train_data, col = 'blue', xlab = 'Year',
      main='Multistep forecast of personal consumprion of non-durable goods', 
      xlim = c(1942, 2019))  ## add correct legend ?)
 lines(fcast1, col = 'black') 
-lines(test_data, col = 'red', lty=2) 
+lines(test_data, col = 'red') 
+lines(fcast1_cum, col = 'green')
 
 plot(my_ts)
 
