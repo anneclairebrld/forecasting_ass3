@@ -40,6 +40,7 @@ for(i in c(1:length(test_data))){
 }
 
 
+#### QUESTION 1. b ####
 ## One step ahead forecast
 plot(test_data, col = 'black', xlab = 'Year', ylab = 'Rate of U.S personal consumption of non-durable goods', 
      main = 'Forecast and realisation from 1990:Q1 to 2019:Q3', 
@@ -54,7 +55,6 @@ plot(test_data, col = 'black', xlab = 'Year', ylab = 'Rate of U.S personal consu
      ylim = c(-7, 7))
 lines(fcast1_cum, col = 'blue')
 legend(x = 'bottomright', legend = c ('Realisation', 'Forecast'), col = c('black', 'blue'), lty = 1:1, cex = 1)
-
 
 
 #### QUESTION 1.c ####
