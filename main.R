@@ -11,7 +11,9 @@ library(vars)
 library(imputeTS)
 library(xts)
 library(tidyr)
-require(dplyr)
+library(dplyr)
+library(factoextra)
+
 
 # set current working dir to where the file is
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
@@ -40,8 +42,8 @@ test_data <- window(my_ts, start = c(1989, 4), end = c(2019, 3)) # start here be
 
 ## multistep forecast
 fcast1 <- as.ts(as.zoo(train_data)[(length(train_data) - 1):length(train_data)]) # transformed back to ts
-
 fcast1_cum <- fcast1
+
 # predict as many times as there are elements in test data 
 for(i in c(1:length(test_data))){
   date <- time(test_data)[i] # get the date 
@@ -87,11 +89,11 @@ ggplot(df, aes(x = sasdate, y = value)) +
 
 #### QUESTION 2.a ####
 
-## Dealing with NA
+## Dealing with NA -----
 sapply(fred_qd, class)
 colSums(is.na(fred_qd)) 
 
-# inputeTS package - only works for univariate but clear visualisation
+# 1. inputeTS package - only works for univariate but clear visualisation
 
 # single line plot - example of 132 missing values in column ACOGNOx
 ggplot(fred_qd, aes(x = sasdate, y = ACOGNOx)) + 
@@ -120,47 +122,52 @@ plotNA.imputations(ACONGNOx_ts, imp)
 imp <- na_ma(ACONGNOx_ts, weighting = "exponential", maxgap = Inf)
 plotNA.imputations(ACONGNOx_ts, imp)
 
-# missMDA package - PCA and missing value for multivariate
+# 2. missMDA package - PCA and missing value for multivariate ---
 # completes the data without impacting the outputted PCA
 nb = estim_ncpPCA(fred_qd[,-1], ncp.max = 5)
 res.imp = imputePCA(fred_qd[,-1],ncp=nb$ncp)
 fred_pca = PCA(res.imp$completeObs)
 summary(fred_pca) # only three dimensions necessary 
 
-## question 2.b
+# visualisation
+fviz_eig(fred_pca, addlabels = TRUE, ylim = c(0, 80))
+
+#### QUESTION 2.b ####
 factors = data.frame(fred_pca$ind$coord) # extract 5 principal components
 
-# using pc - WRONG SHOULD BE ct
-# pc$observation_date = as.Date(as.yearqtr(pc$observation_date, format = "%y.%Q"))
-# PC <- pc %>% filter(observation_date >= "1959-01-01", observation_date < "2019-09-01")
-# variables <- cbind(PC, factors)
+# using pc
+pc$observation_date = as.Date(as.yearqtr(pc$observation_date, format = "%y.%Q"))
+PC <- pc %>% filter(observation_date >= "1959-01-01", observation_date < "2019-09-01")
 
-# using ct
-ct <- forecast(fcast1.update, 1)
-ct <- data.frame(Y=as.matrix(ct$x), date=as.Date(as.yearmon(time(ct$x))))
-ct <- ct %>% filter(date >= "1959-01-01", date <= "2019-07-01")
-variables <- cbind(ct, factors)
+# create the matrix used for the VAR model
+variables <- cbind(PC, factors)
 
-VARselect(variables[,-2], lag.max = 12, type = "const") # change to variables [,-1] if using pc
-VARmodel <- VAR(variables[,-2], p=2) # from VARselect
+# using Granger causality to chose the number of principal components to use
+
+
+
+# selecting the correct VAR model
+ts.matrix <- ts(variables, frequency = 4, start = c(1959, 1))
+VARselect(ts.matrix, lag.max = 12, type = "const")
+VARmodel <- VAR(ts.matrix, p=5) # from VARselect
 summary(VARmodel)
 
-# question 2.c
+#### QUESTION 2.c ####
+fcast2 <- as.ts(as.zoo(train_data)[(length(train_data)-1):length(train_data)]) # transformed back to ts
+  
 for(i in c(1:length(test_data))){
   date <- time(test_data)[i] # get the date 
-  temp <- window(my_ts, end = date) 
-  # fcast2.update <- arima(temp, c(1, 0, 0)) # fit an AR(1)
-  fcast1 <- ts(c(fcast1, forecast(VARmodel, 1)$mean), start = time(fcast1)[1], frequency = 4) # forecast and add to our forecast array 
-  fcast1_cum <- ts(c(fcast1_cum, sum(forecast(fcast1.update, 4)$mean)), start = time(fcast1)[1], frequency = 4) # maybe this should add the past 4 predicitons instead of predicting the next 4
-}
+  temp <- window(ts.matrix, end = date) 
+  fcast2.update <- VAR(temp, p=5)
+  fcast2 <- ts(c(fcast2, forecast(fcast2.update, 1)$forecast$PCND_PCH$mean), start = time(fcast2)[1], frequency = 4) # forecast and add to our forecast array 
+  }
 
-a=forecast(VARmodel$datamat, 1)
+## one step ahead forecast
+plot(test_data, col = 'black', xlab = 'Year', ylab = 'Rate of U.S personal consumption of non-durable goods', 
+     main = 'Forecast and realisation from 1990:Q1 to 2019:Q3', 
+     xlim = c(1990, 2020))
+lines(fcast2, col = 'blue')
+legend(x = 'bottomright', legend = c ('Realisation', 'Forecast'), col = c('black', 'blue'), lty = 1:1, cex = 1)
 
 
-
-prd <- predict(VARmodel, n.ahead = 10, ci = 0.95, dumvar = NULL)
-print(prd)
-plot(prd, "single")
-
-FORCAST1 = data.frame(Y=as.matrix(fcast1), date=as.Date(as.yearmon(time(fcast1))))
 
