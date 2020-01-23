@@ -101,6 +101,10 @@ ggplot(fred_qd, aes(x = sasdate, y = ACOGNOx)) +
   theme_minimal()
 
 # NA distribution plot
+dummy = fred_qd[,c("sasdate", "TCU")]
+TCU_ts = as.xts(dummy$TCU, order.by = dummy$sasdate)
+plotNA.distribution(TCU_ts)
+
 dummy = fred_qd[,c("sasdate", "ACOGNOx")]
 ACONGNOx_ts = as.xts(dummy$ACOGNOx, order.by = dummy$sasdate)
 plotNA.distribution(ACONGNOx_ts)
@@ -155,12 +159,12 @@ VARmodel <- VAR(ts.matrix, p=8) # from VARselect
 summary(VARmodel)
 
 #### QUESTION 2.c ####
-fcast2 <- as.ts(as.zoo(train_data)[(length(train_data)-1):length(train_data)]) # transformed back to ts
+fcast2 <- ts() # transformed back to ts
   
 for(i in c(1:length(test_data))){
   date <- time(test_data)[i] # get the date 
   temp <- window(ts.matrix, end = date) 
-  fcast2.update <- VAR(temp, p=5)
+  fcast2.update <- VAR(temp, p=8)
   # fcast2 <- ts(c(fcast2, forecast(fcast2.update, 1)$forecast$PCND_PCH$mean), start = time(fcast2)[1], frequency = 4) # forecast and add to our forecast array 
   if (i==1) {
     fcast2 <- ts(c(forecast(fcast2.update, 1)$forecast$PCND_PCH$mean), start = c(1989, 4), frequency = 4)
@@ -197,14 +201,14 @@ accuracy(fcast1, test_data)
 accuracy(fcast2, test_data)
 
 # Diebold-Mariano test 
-dm.test(e1, e2, alternative = "less", h = 1, power = 2) #c("two.sided", "less", "greater") < 0 hence AR model better
+dm.test(e1, e2) #alternative = c("two.sided", "less", "greater"), h = 1, power = 2 
 
 #### QUESTION 2.f ####
 library(MARSS)
+MARSS(t(fred_qd[,-1]))
+MARSS(t(ts.matrix[,-1]))
 
-
-
-
+a=fred_qd[,-1]
 
 #### NOTES ####
 
