@@ -41,11 +41,11 @@ train_data <- window(my_ts, start = c(1947, 2), end = c(1989, 4))
 test_data <- window(my_ts, start = c(1989, 4), end = c(2019, 3)) # start here because easier to predict later i.e we start predicting for 1990
 
 ## multistep forecast
-fcast1 <- as.ts(as.zoo(train_data)[(length(train_data) - 1):length(train_data)]) # transformed back to ts
+fcast1 <- as.ts(as.zoo(train_data)[(length(train_data)):length(train_data)]) # transformed back to ts
 fcast1_cum <- fcast1
 
 # predict as many times as there are elements in test data 
-for(i in c(1:length(test_data))){
+for(i in c(2:length(test_data))){
   date <- time(test_data)[i] # get the date 
   temp <- window(my_ts, end = date) 
   fcast1.update <- arima(temp, c(1, 0, 0)) # fit an AR(1)
@@ -140,22 +140,24 @@ pc$observation_date = as.Date(as.yearqtr(pc$observation_date, format = "%y.%Q"))
 PC <- pc %>% filter(observation_date >= "1959-01-01", observation_date < "2019-09-01")
 
 # create the matrix used for the VAR model
-variables <- cbind(PC, factors)
+variables <- cbind(PC, factors) #factors[1:4] if reducing to four principal components
+ts.matrix <- ts(variables, frequency = 4, start = c(1959, 1))
+
+# verify stationarity
+adf.test(ts.matrix[,2]) # stationary p < 0.05
 
 # using Granger causality to chose the number of principal components to use
-
-
+grangertest(PCND_PCH ~ Dim.5, order = 5, data = ts.matrix) # p = 0.215 > 0.05 Null hypothesis cannot be rejected
 
 # selecting the correct VAR model
-ts.matrix <- ts(variables, frequency = 4, start = c(1959, 1))
 VARselect(ts.matrix, lag.max = 12, type = "const")
 VARmodel <- VAR(ts.matrix, p=5) # from VARselect
 summary(VARmodel)
 
 #### QUESTION 2.c ####
-fcast2 <- as.ts(as.zoo(train_data)[(length(train_data)-1):length(train_data)]) # transformed back to ts
+fcast2 <- as.ts(as.zoo(train_data)[(length(train_data)):length(train_data)]) # transformed back to ts
   
-for(i in c(1:length(test_data))){
+for(i in c(2:length(test_data))){
   date <- time(test_data)[i] # get the date 
   temp <- window(ts.matrix, end = date) 
   fcast2.update <- VAR(temp, p=5)
@@ -169,5 +171,42 @@ plot(test_data, col = 'black', xlab = 'Year', ylab = 'Rate of U.S personal consu
 lines(fcast2, col = 'blue')
 legend(x = 'bottomright', legend = c ('Realisation', 'Forecast'), col = c('black', 'blue'), lty = 1:1, cex = 1)
 
+#### QUESTION 2.d ####
+
+## define errors
+e1 = fcast1 - test_data
+e2 = fcast2 - test_data
+
+## check for bias
+shapiro.test(e2) # check for normality of residuals
+checkresiduals(e2) # plots
+mean(e2)
+
+## Performing a test 
+# biased at a confidence level of 95%
+t.test(e2, y = NULL, alternative = "two.sided", mu = 0, 
+       paired = FALSE, var.equal = FALSE, conf.level = 0.95)
+
+## compare models 
+accuracy(fcast1, test_data)
+accuracy(fcast2, test_data)
+
+# Diebold-Mariano test 
+dm.test(e1, e2, alternative = "less", h = 1, power = 2) #c("two.sided", "less", "greater") < 0 hence AR model better
+
+#### QUESTION 2.f ####
+library(MARSS)
 
 
+
+
+
+#### NOTES ####
+
+# check the articles for FAVAR and selection of components
+# double check notes on state space
+# calculate best model
+
+
+#### BEST MODEL ####
+#auto varima
