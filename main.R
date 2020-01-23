@@ -140,7 +140,7 @@ pc$observation_date = as.Date(as.yearqtr(pc$observation_date, format = "%y.%Q"))
 PC <- pc %>% filter(observation_date >= "1959-01-01", observation_date < "2019-09-01")
 
 # create the matrix used for the VAR model
-variables <- cbind(PC, factors) #factors[1:4] if reducing to four principal components
+variables <- cbind(PC, factors[1:4]) #factors[1:4] if reducing to four principal components
 ts.matrix <- ts(variables, frequency = 4, start = c(1959, 1))
 
 # verify stationarity
@@ -151,17 +151,22 @@ grangertest(PCND_PCH ~ Dim.5, order = 5, data = ts.matrix) # p = 0.215 > 0.05 Nu
 
 # selecting the correct VAR model
 VARselect(ts.matrix, lag.max = 12, type = "const")
-VARmodel <- VAR(ts.matrix, p=5) # from VARselect
+VARmodel <- VAR(ts.matrix, p=8) # from VARselect
 summary(VARmodel)
 
 #### QUESTION 2.c ####
-fcast2 <- as.ts(as.zoo(train_data)[(length(train_data)):length(train_data)]) # transformed back to ts
+fcast2 <- as.ts(as.zoo(train_data)[(length(train_data)-1):length(train_data)]) # transformed back to ts
   
-for(i in c(2:length(test_data))){
+for(i in c(1:length(test_data))){
   date <- time(test_data)[i] # get the date 
   temp <- window(ts.matrix, end = date) 
   fcast2.update <- VAR(temp, p=5)
-  fcast2 <- ts(c(fcast2, forecast(fcast2.update, 1)$forecast$PCND_PCH$mean), start = time(fcast2)[1], frequency = 4) # forecast and add to our forecast array 
+  # fcast2 <- ts(c(fcast2, forecast(fcast2.update, 1)$forecast$PCND_PCH$mean), start = time(fcast2)[1], frequency = 4) # forecast and add to our forecast array 
+  if (i==1) {
+    fcast2 <- ts(c(forecast(fcast2.update, 1)$forecast$PCND_PCH$mean), start = c(1989, 4), frequency = 4)
+  } else{
+    fcast2 <- ts(c(fcast2, forecast(fcast2.update, 1)$forecast$PCND_PCH$mean), start = time(fcast2)[1], frequency = 4)
+  }
   }
 
 ## one step ahead forecast
@@ -174,8 +179,8 @@ legend(x = 'bottomright', legend = c ('Realisation', 'Forecast'), col = c('black
 #### QUESTION 2.d ####
 
 ## define errors
-e1 = fcast1 - test_data
-e2 = fcast2 - test_data
+e1 = test_data - fcast1
+e2 = test_data - fcast2
 
 ## check for bias
 shapiro.test(e2) # check for normality of residuals
